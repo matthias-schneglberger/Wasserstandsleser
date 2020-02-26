@@ -36,7 +36,17 @@ void loop() { //////////////////////////////////////////////////////////////////
   if (diff >= delayBetween) {
     Serial.println("measure!");
     lastMeasure = millis();
-    Serial.println("ANFANG" + measure() + "ENDE");
+
+    String measured = measure();
+//    if(isDigit(measured.charAt(0))){
+//      Serial.println("##########VALID");
+//      }
+    measured = measured.substring(11,measured.length()-3);
+
+
+    Serial.println(measured);
+    
+    
   }
 
   //if(BTSerial.readString() == "measure"){
@@ -90,9 +100,7 @@ String measure() {  ////////////////////////////////////////////////////////////
 
 
     //Serial.println("readNewString...");
-    line = Serial.readStringUntil('\n');
-
-    if(line.length() > 10){line = "";}
+    line = Serial.readString();
   }
 
   //Serial.println("out of while");
