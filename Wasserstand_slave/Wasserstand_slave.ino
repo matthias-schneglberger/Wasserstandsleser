@@ -7,7 +7,6 @@ int timeLastMeasure = millis();
 
 void setup() { /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SETUP
   Serial.begin(9600);
-  Serial1.begin(9600);
 
   pinMode(switchPin_5, OUTPUT);
   pinMode(switchPin_6, OUTPUT);
@@ -79,12 +78,12 @@ int getWaterLevel(){////////////////////////////////////////////////////////////
   
   for(int i = 0; i <= 15; i++){
     //Serial.println(i);
-    Serial.println("Reading Sensor #" + String(i) + "__" + getValueForSensor(i));
+    //Serial.println("Reading Sensor #" + String(i) + ":" + getValueForSensor(i));
     if(getValueForSensor(i) == 0){
       
         currentWaterLevel += waterBetweenSensors;
 
-        Serial.println(currentWaterLevel);
+        //Serial.println(currentWaterLevel);
       }
      
     else{
@@ -96,7 +95,7 @@ int getWaterLevel(){////////////////////////////////////////////////////////////
   if(getValueForSensor(14) == 0 && getValueForSensor(15) == 0){
       currentWaterLevel = 8000;
   }
-  Serial.println("return");
+  //Serial.println("return");
   return currentWaterLevel;
 
   
