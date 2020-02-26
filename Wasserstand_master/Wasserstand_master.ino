@@ -9,6 +9,9 @@
 #define btRX 4
 #define btTX 3
 
+#define pinDirektVerbTank 47
+#define pinPumpenVent 49
+
 
 int maxTimeouts = 3;
 int currentTimeouts = 0;
@@ -27,6 +30,13 @@ void setup() {//////////////////////////////////////////////////////////////////
   pinMode(switchPin_3, OUTPUT);
   pinMode(switchPin_4, OUTPUT);
 
+  pinMode(pinDirektVerbTank, OUTPUT);
+  pinMode(pinPumpenVent, OUTPUT);
+
+
+  digitalWrite(pinDirektVerbTank, 1);
+  digitalWrite(pinPumpenVent, 1);
+
   //Serial.println("Wasserstandsanzeige");
 
 }
@@ -36,12 +46,31 @@ void loop() { //////////////////////////////////////////////////////////////////
   if (diff >= delayBetween) {
     Serial.println("measure!");
     lastMeasure = millis();
-
+    
     String measured = measure();
+
+    int grosserTank = getValue(measured, ';', 0).toInt();
+    int kleinerTank = getValue(measured, ';', 1).toInt();
+    int insgesamt = getValue(measured, ';', 2).toInt();
+
+    if(kleinerTank <= 500 && grosserTank >= 500){
+      digitalWrite(pinDirektVerbTank, 0);
+      digitalWrite(pinPumpenVent, 1);
+      }
+    if(kleinerTank >= 500){
+      digitalWrite(pinDirektVerbTank, 1);
+      digitalWrite(pinPumpenVent, 1);
+      }
+    if(kleinerTank >=2500 && grosserTank < 7500){
+      digitalWrite(pinDirektVerbTank, 1);
+      digitalWrite(pinPumpenVent, 0);
+      }
     
 
-
-    Serial.println(measured);
+    
+    
+    
+    Serial.println(insgesamt);
     
     
   }
@@ -106,13 +135,13 @@ String measure() {  ////////////////////////////////////////////////////////////
 
 
 
-  //String waterLevel_str = String(waterLevel_bigTank) + ";" + String(waterLevel_smallTank) + String(waterLevel);
+  String waterLevel_str = String(waterLevel_bigTank) + ";" + String(waterLevel_smallTank) + ";" + String(waterLevel);
   //String waterLevel_str = String(waterLevel_bigTank);
   //Serial.println(waterLevel_str);
   
   
   
-  return String(waterLevel);
+  return waterLevel_str;
 }
 
 
@@ -198,3 +227,57 @@ int getValueForSensor(int sensorNum){///////////////////////////////////////////
     return 100;
 
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+String getValue(String data, char separator, int index)
+{
+    int found = 0;
+    int strIndex[] = { 0, -1 };
+    int maxIndex = data.length() - 1;
+
+    for (int i = 0; i <= maxIndex && found <= index; i++) {
+        if (data.charAt(i) == separator || i == maxIndex) {
+            found++;
+            strIndex[0] = strIndex[1] + 1;
+            strIndex[1] = (i == maxIndex) ? i+1 : i;
+        }
+    }
+    return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
