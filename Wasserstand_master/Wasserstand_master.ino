@@ -18,6 +18,8 @@ int currentTimeouts = 0;
 int delayBetween = 5000;
 int lastMeasure = 0;
 
+boolean currentlyFill = false; //kleinerTank wird befüllt?
+
 void setup() {/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SETUP
 
 
@@ -53,15 +55,22 @@ void loop() { //////////////////////////////////////////////////////////////////
     int kleinerTank = getValue(measured, ';', 1).toInt();
     int insgesamt = getValue(measured, ';', 2).toInt();
 
-    if(kleinerTank <= 500 && grosserTank >= 500){
+    if(kleinerTank < 500 && grosserTank >= 500){
+      currentlyFill = true;
       digitalWrite(pinDirektVerbTank, 0);
       digitalWrite(pinPumpenVent, 1);
       }
-    if(kleinerTank >= 500){
+    if(kleinerTank >= 500 && !currentlyFill){
       digitalWrite(pinDirektVerbTank, 1);
       digitalWrite(pinPumpenVent, 1);
       }
-    if(kleinerTank >=2500 && grosserTank < 7500){
+    if(kleinerTank >= 1000 && currentlyFill){
+      currentlyFill = false;
+      digitalWrite(pinDirektVerbTank, 1);
+      digitalWrite(pinPumpenVent, 1);
+      }
+    
+    if(kleinerTank >=1500 && grosserTank < 8000){
       digitalWrite(pinDirektVerbTank, 1);
       digitalWrite(pinPumpenVent, 0);
       }
