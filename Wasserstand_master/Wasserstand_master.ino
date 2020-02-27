@@ -1,3 +1,5 @@
+#include <SoftwareSerial.h>
+
 #define timeout 5000
 #define timeoutPin 2
 #define waterBetweenSensors 500
@@ -13,17 +15,23 @@
 #define pinPumpenVent 49
 
 
+
 int maxTimeouts = 3;
 int currentTimeouts = 0;
 int delayBetween = 5000;
 int lastMeasure = 0;
 
+String currentWaterLevel = "";
+
 boolean currentlyFill = false; //kleinerTank wird befüllt?
+
+SoftwareSerial BTSerial(10, 11); // RX, TX
 
 void setup() {/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SETUP
 
 
   Serial.begin(9600);
+  BTSerial.begin(9600);
 
   pinMode(timeoutPin, OUTPUT);
 
@@ -50,6 +58,8 @@ void loop() { //////////////////////////////////////////////////////////////////
     lastMeasure = millis();
     
     String measured = measure();
+
+    currentWaterLevel = measured;
 
     int grosserTank = getValue(measured, ';', 0).toInt();
     int kleinerTank = getValue(measured, ';', 1).toInt();
@@ -84,9 +94,13 @@ void loop() { //////////////////////////////////////////////////////////////////
     
   }
 
-  //if(BTSerial.readString() == "measure"){
-  //BTSerial.println(measure());
-  //}
+  if(BTSerial.available()){
+    String input = BTSerial.readString();
+    
+    if(input.indexOf("howMuchW") >= 0){
+      BTSerial.println(currentWaterLevel);
+      }
+  }
 
 }
 
