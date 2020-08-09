@@ -5,6 +5,11 @@ int waterBetweenSensors = 500;
 #define switchPin_8 33
 int timeLastMeasure = millis();
 
+int trigger=7; 
+int echo=6; 
+long dauer=0; 
+long entfernung=0; 
+
 void setup() { /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SETUP
   Serial.begin(9600);
 
@@ -27,9 +32,9 @@ void loop() {///////////////////////////////////////////////////////////////////
   if(readed.indexOf("howMuchWater?") > 0){
     //Serial.println("bindrinn");
     timeLastMeasure = millis();
-    //Serial.println("vor");
+    Serial.println("vor");
     int waterLevel = getWaterLevel();
-    //Serial.println("nach");
+    Serial.println("nach: " + String(waterLevel));
     Serial.println("waterLevel:" + String(waterLevel) + ":");
     }
   else if(readed.indexOf("switchOnPin_5") > 0){
@@ -72,7 +77,7 @@ void loop() {///////////////////////////////////////////////////////////////////
 
 }
 
-int getWaterLevel(){////////////////////////////////////////////////////////////////////////////////////////////7/////////////////////////////////////////////////////////////////////////////////GET WATER LEVEL
+int getOLDWaterLevel(){////////////////////////////////////////////////////////////////////////////////////////////7/////////////////////////////////////////////////////////////////////////////////GET WATER LEVEL
   //Serial.println("getWater");
   int currentWaterLevel = 0;
   
@@ -100,6 +105,35 @@ int getWaterLevel(){////////////////////////////////////////////////////////////
 
   
   }
+
+int getWaterLevel(){
+  int waterlevel = 0;
+  int anzTanks = 8;
+  int abstand = 10;
+  digitalWrite(trigger, LOW); 
+  delay(5); 
+  digitalWrite(trigger, HIGH); 
+  delay(10);
+  digitalWrite(trigger, LOW);
+  dauer = pulseIn(echo, HIGH); 
+  entfernung = (dauer/2) * 0.03432; 
+  Serial.println(dauer);
+  if (entfernung > 100 || entfernung <= 0) 
+  {
+  //return
+  }
+  else 
+  {
+    int level = 100 - (entfernung - abstand);
+    waterlevel = level * 10 * anzTanks;
+ 
+  }
+
+  if(waterlevel > 1000 * anzTanks){
+    waterlevel = 1000 * anzTanks;
+  }
+ return waterlevel;
+}
 
 int getValueForSensor(int sensorNum){ /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////GET VALUE FOR SENSOR
   
