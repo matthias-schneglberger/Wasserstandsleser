@@ -8,6 +8,16 @@ IPAddress subnet( 255, 255, 255, 0 );
 
 EthernetServer server(4711);
 
+int trigger=12; 
+int echo=11; 
+long dauer=0; 
+long entfernung=0; 
+
+
+int trigger2=10;  //2 => extern!
+int echo2=9; 
+long dauer2=0; 
+long entfernung2=0; 
 
 
 #define timeout 5000
@@ -17,6 +27,10 @@ EthernetServer server(4711);
 #define switchPin_2 31
 #define switchPin_3 32
 #define switchPin_4 33
+#define switchPin_5 34
+#define switchPin_6 35
+#define switchPin_7 36
+#define switchPin_8 37
 
 #define btRX 4
 #define btTX 3
@@ -387,15 +401,19 @@ void driveJob(String jobStr){
       }
 
     if(jobStr.indexOf("Unit5;") > 0){
+      digitalWrite(switchPin_5, 0);
       Serial.println("switchOnPin_5");
       }
     if(jobStr.indexOf("Unit6;") > 0){
+      digitalWrite(switchPin_6, 0);
       Serial.println("switchOnPin_6");
       }
     if(jobStr.indexOf("Unit7;") > 0){
+      digitalWrite(switchPin_7, 0);
       Serial.println("switchOnPin_7");
     }
     if(jobStr.indexOf("Unit8;") > 0){
+      digitalWrite(switchPin_8, 0);
       Serial.println("switchOnPin_7");
       }
     
@@ -423,15 +441,19 @@ void stopJob(String jobStr){
       }
 
     if(jobStr.indexOf("Unit5;") > 0){
+      digitalWrite(switchPin_5, 1);
       Serial.println("switchOffPin_5");
       }
     if(jobStr.indexOf("Unit6;") > 0){
+      digitalWrite(switchPin_6, 1);
       Serial.println("switchOffPin_6");
       }
     if(jobStr.indexOf("Unit7;") > 0){
+      digitalWrite(switchPin_7, 1);
       Serial.println("switchOffPin_7");
     }
     if(jobStr.indexOf("Unit8;") > 0){
+      digitalWrite(switchPin_8, 1);
       Serial.println("switchOffPin_7");
       }
   }
@@ -442,47 +464,47 @@ void stopJob(String jobStr){
 
 String measure() {  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////MEASURE
   lastMeasure = millis();
-  String waterStr = "";
-  Serial.println("howMuchWater?");
-
-  String line = Serial.readString();
-
-  long start = millis();
-
-  while (line == "") {
-    int tmp = millis() - start;
-    if (tmp >= timeout) {
-      line = "timeout";
-
-      //      if(currentTimeouts >= maxTimeouts){
-      //        currentTimeouts = 0;
-      //        digitalWrite(timeoutPin, HIGH);
-      //        delay(250);
-      //        digitalWrite(timeoutPin, LOW);
-      //        Serial.println("too many timeouts");
-      //        }
-      //
-      //      currentTimeouts++;
-
-
-      break;
-    }
-
+//  String waterStr = "";
+//  Serial.println("howMuchWater?");
+//
+//  String line = Serial.readString();
+//
+//  long start = millis();
+//
+//  while (line == "") {
+//    int tmp = millis() - start;
+//    if (tmp >= timeout) {
+//      line = "timeout";
+//
+//      //      if(currentTimeouts >= maxTimeouts){
+//      //        currentTimeouts = 0;
+//      //        digitalWrite(timeoutPin, HIGH);
+//      //        delay(250);
+//      //        digitalWrite(timeoutPin, LOW);
+//      //        Serial.println("too many timeouts");
+//      //        }
+//      //
+//      //      currentTimeouts++;
+//
+//
+//      break;
 //    }
+//
+////    }
+//
+//
+//    line = Serial.readString();
+//  }
+//
+//
+//
+//  //}
+//  Serial.println(line + "returned");
+//  line = line.substring(11,line.length()-3);
 
 
-    line = Serial.readString();
-  }
-
-
-
-  //}
-  Serial.println(line + "returned");
-  line = line.substring(11,line.length()-3);
-
-
-
-  int waterLevel_bigTank = line.toInt();
+  
+  int waterLevel_bigTank = getExternWaterLevel();
   int waterLevel_smallTank = getWaterLevel();
   int waterLevel = waterLevel_bigTank + waterLevel_smallTank;
 
@@ -490,6 +512,8 @@ String measure() {  ////////////////////////////////////////////////////////////
 
 
   String waterLevel_str = String(waterLevel_bigTank) + ";" + String(waterLevel_smallTank) + ";" + String(waterLevel);
+
+  Serial.println(waterLevel_str);
   //String waterLevel_str = String(waterLevel_bigTank);
   //Serial.println(waterLevel_str);
   
@@ -498,9 +522,63 @@ String measure() {  ////////////////////////////////////////////////////////////
   return waterLevel_str;
 }
 
+int getExternWaterLevel(){
+  int currentWaterLevel = 0;
+  int anzTanks = 8;
+  int abstand = 10;
+  digitalWrite(trigger2, LOW); 
+  delay(5); 
+  digitalWrite(trigger2, HIGH); 
+  delay(10);
+  digitalWrite(trigger2, LOW);
+  dauer2 = pulseIn(echo2, HIGH);
+  entfernung2 = (dauer2/2) * 0.03432; 
+  if (entfernung2 > 100 || entfernung2 <= 0) 
+  {
+  //return
+  }
+  else 
+  {
+    int level = 100 - (entfernung2 - abstand);
+    currentWaterLevel = level * 10 * anzTanks;
+  }
+
+  if(currentWaterLevel > 1000 * anzTanks){
+    currentWaterLevel = 1000 * anzTanks;
+  }
+ return currentWaterLevel;
+}
 
 
-int getWaterLevel(){////////////////////////////////////////////////////////////////////////////////////////////7/////////////////////////////////////////////////////////////////////////////////GET WATER LEVEL
+int getWaterLevel(){
+  int currentWaterLevel = 0;
+  int anzTanks = 4;
+  int abstand = 10;
+  digitalWrite(trigger, LOW); 
+  delay(5); 
+  digitalWrite(trigger, HIGH); 
+  delay(10);
+  digitalWrite(trigger, LOW);
+  dauer = pulseIn(echo, HIGH);
+  entfernung = (dauer/2) * 0.03432; 
+  if (entfernung > 100 || entfernung <= 0) 
+  {
+  //return
+  }
+  else 
+  {
+    int level = 100 - (entfernung - abstand);
+    currentWaterLevel = level * 10 * anzTanks;
+  }
+
+  if(currentWaterLevel > 1000 * anzTanks){
+    currentWaterLevel = 1000 * anzTanks;
+  }
+ return currentWaterLevel;
+}
+
+
+int getOLDWaterLevel(){////////////////////////////////////////////////////////////////////////////////////////////7/////////////////////////////////////////////////////////////////////////////////GET WATER LEVEL
   int currentWaterLevel = 0;
 
   for(int i = 0; i <= 7; i++){
