@@ -5,13 +5,16 @@ int waterBetweenSensors = 500;
 #define switchPin_8 33
 int timeLastMeasure = millis();
 
-int trigger=7; 
-int echo=6; 
+int trigger=12; 
+int echo=11; 
 long dauer=0; 
 long entfernung=0; 
 
 void setup() { /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SETUP
   Serial.begin(9600);
+
+  pinMode(trigger, OUTPUT);
+  pinMode(echo, INPUT);
 
   pinMode(switchPin_5, OUTPUT);
   pinMode(switchPin_6, OUTPUT);
@@ -27,14 +30,13 @@ void loop() {///////////////////////////////////////////////////////////////////
 
   while(readed.equals("")){readed = Serial.readString();}
 
+
   
   //Serial.println(readed);
   if(readed.indexOf("howMuchWater?") > 0){
     //Serial.println("bindrinn");
     timeLastMeasure = millis();
-    Serial.println("vor");
     int waterLevel = getWaterLevel();
-    Serial.println("nach: " + String(waterLevel));
     Serial.println("waterLevel:" + String(waterLevel) + ":");
     }
   else if(readed.indexOf("switchOnPin_5") > 0){
@@ -107,7 +109,7 @@ int getOLDWaterLevel(){/////////////////////////////////////////////////////////
   }
 
 int getWaterLevel(){
-  int waterlevel = 0;
+  int currentWaterLevel = 0;
   int anzTanks = 8;
   int abstand = 10;
   digitalWrite(trigger, LOW); 
@@ -115,9 +117,8 @@ int getWaterLevel(){
   digitalWrite(trigger, HIGH); 
   delay(10);
   digitalWrite(trigger, LOW);
-  dauer = pulseIn(echo, HIGH); 
+  dauer = pulseIn(echo, HIGH);
   entfernung = (dauer/2) * 0.03432; 
-  Serial.println(dauer);
   if (entfernung > 100 || entfernung <= 0) 
   {
   //return
@@ -125,14 +126,13 @@ int getWaterLevel(){
   else 
   {
     int level = 100 - (entfernung - abstand);
-    waterlevel = level * 10 * anzTanks;
- 
+    currentWaterLevel = level * 10 * anzTanks;
   }
 
-  if(waterlevel > 1000 * anzTanks){
-    waterlevel = 1000 * anzTanks;
+  if(currentWaterLevel > 1000 * anzTanks){
+    currentWaterLevel = 1000 * anzTanks;
   }
- return waterlevel;
+ return currentWaterLevel;
 }
 
 int getValueForSensor(int sensorNum){ /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////GET VALUE FOR SENSOR
