@@ -8,14 +8,14 @@ IPAddress subnet( 255, 255, 255, 0 );
 
 EthernetServer server(4711);
 
-int trigger=12; 
-int echo=11; 
+int trigger=22; 
+int echo=23; 
 long dauer=0; 
 long entfernung=0; 
 
 
-int trigger2=10;  //2 => extern!
-int echo2=9; 
+int trigger2=24;  //2 => extern!
+int echo2=25; 
 long dauer2=0; 
 long entfernung2=0; 
 
@@ -91,6 +91,13 @@ void setup() {//////////////////////////////////////////////////////////////////
   digitalWrite(switchPin_2, 1);
   digitalWrite(switchPin_3, 1);
   digitalWrite(switchPin_4, 1);
+
+  pinMode(trigger2, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echo2, INPUT); // Sets the echoPin as an Input
+  
+  pinMode(trigger, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echo, INPUT); // Sets the echoPin as an Input
+
 
   //Serial.println("Wasserstandsanzeige");
 
