@@ -39,7 +39,6 @@ long entfernung2=0;
 #define pinPumpenVent 49
 
 
-
 int maxTimeouts = 3;
 int currentTimeouts = 0;
 int delayBetween = 5000;
@@ -119,6 +118,7 @@ void loop() { //////////////////////////////////////////////////////////////////
     int kleinerTank = getValue(measured, ';', 1).toInt();
     int insgesamt = getValue(measured, ';', 2).toInt();
 
+    //currentlyFill == kleinerTank gets filled
 
     if(pumpAutoMode){
       if(kleinerTank < 500 && grosserTank >= 500){
@@ -126,7 +126,7 @@ void loop() { //////////////////////////////////////////////////////////////////
         digitalWrite(pinDirektVerbTank, 0);
         digitalWrite(pinPumpenVent, 1);
         }
-      if(kleinerTank >= 500 && !currentlyFill){
+      if((kleinerTank >= 500 && !currentlyFill) || (grosserTank < 4000 && currentlyFill)){
         digitalWrite(pinDirektVerbTank, 1);
         digitalWrite(pinPumpenVent, 1);
         }
