@@ -126,7 +126,7 @@ void loop() { //////////////////////////////////////////////////////////////////
         digitalWrite(pinDirektVerbTank, 0);
         digitalWrite(pinPumpenVent, 1);
         }
-      if((kleinerTank >= 500 && !currentlyFill) || (grosserTank < 4000 && currentlyFill)){
+      if((kleinerTank >= 500 && !currentlyFill) || (kleinerTank < 200 && grosserTank < 200)){
         digitalWrite(pinDirektVerbTank, 1);
         digitalWrite(pinPumpenVent, 1);
         }
