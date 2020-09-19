@@ -126,7 +126,7 @@ void loop() { //////////////////////////////////////////////////////////////////
         digitalWrite(pinDirektVerbTank, 0);
         digitalWrite(pinPumpenVent, 1);
         }
-      if((kleinerTank >= 500 && !currentlyFill) || (kleinerTank < 200 && grosserTank < 200)){
+      if((kleinerTank >= 500 && !currentlyFill) || (kleinerTank < 200 && grosserTank < 100)){
         digitalWrite(pinDirektVerbTank, 1);
         digitalWrite(pinPumpenVent, 1);
         }
@@ -163,6 +163,8 @@ void loop() { //////////////////////////////////////////////////////////////////
       }
 
     Serial.println(input);
+
+    
 
     if(input.indexOf("howMuchW") >= 0){
       client.println(currentWaterLevel);
@@ -245,6 +247,8 @@ void loop() { //////////////////////////////////////////////////////////////////
     else{
       client.println("nothing found " + input);
       }
+
+      client.stop();
 
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
