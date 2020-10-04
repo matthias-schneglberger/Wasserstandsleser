@@ -3,7 +3,7 @@
 #include <Ethernet.h>
 
 byte mac[] = { 0x90, 0xA2, 0xDA, 0x0E, 0xAC, 0x68 }; //adresse mac de la carte
-IPAddress ip( 192, 168, 1, 103 );
+IPAddress ip(192,168,1,103);
 IPAddress subnet( 255, 255, 255, 0 );
 
 EthernetServer server(4711);
@@ -24,14 +24,14 @@ long entfernung2=0;
 #define timeoutPin 2
 #define waterBetweenSensors 500
 #define switchPin_1 30
-#define switchPin_2 31
+#define switchPin_2 53
 #define switchPin_3 32
-#define switchPin_4 33
-#define switchPin_5 34
+#define switchPin_4 52
+#define switchPin_5 41
 #define switchPin_6 35
 #define switchPin_7 36
 #define switchPin_8 37
-#define transformatorRelayPin 40
+#define transformatorRelayPin 50
 
 #define btRX 4
 #define btTX 3
@@ -89,18 +89,18 @@ void setup() {//////////////////////////////////////////////////////////////////
   pinMode(pinPumpenVent, OUTPUT);
 
 
-  digitalWrite(pinDirektVerbTank, 1);
-  digitalWrite(pinPumpenVent, 1);
+  digitalWrite(pinDirektVerbTank, 0);
+  digitalWrite(pinPumpenVent, 0);
 
-  digitalWrite(switchPin_1, 1);
-  digitalWrite(switchPin_2, 1);
-  digitalWrite(switchPin_3, 1);
-  digitalWrite(switchPin_4, 1);
-  digitalWrite(switchPin_5, 1);
-  digitalWrite(switchPin_6, 1);
-  digitalWrite(switchPin_7, 1);
-  digitalWrite(switchPin_8, 1);
-  digitalWrite(transformatorRelayPin, 1);
+  digitalWrite(switchPin_1, 0);
+  digitalWrite(switchPin_2, 0);
+  digitalWrite(switchPin_3, 0);
+  digitalWrite(switchPin_4, 0);
+  digitalWrite(switchPin_5, 0);
+  digitalWrite(switchPin_6, 0);
+  digitalWrite(switchPin_7, 0);
+  digitalWrite(switchPin_8, 0);
+  digitalWrite(transformatorRelayPin, 0);
 
   pinMode(trigger2, OUTPUT); // Sets the trigPin as an Output
   pinMode(echo2, INPUT); // Sets the echoPin as an Input
@@ -134,24 +134,24 @@ void loop() { //////////////////////////////////////////////////////////////////
     if(pumpAutoMode){
       if(kleinerTank < 500 && grosserTank >= 500){
         currentlyFill = true;
-        digitalWrite(pinDirektVerbTank, 0);
-        digitalWrite(pinPumpenVent, 1);
-        digitalWrite(transformatorRelayPin, 0);
+        digitalWrite(pinDirektVerbTank, 1);
+        digitalWrite(pinPumpenVent, 0);
+        digitalWrite(transformatorRelayPin, 1);
         }
       if((kleinerTank >= 500 && !currentlyFill) || (kleinerTank < 200 && grosserTank < 100)){
-        digitalWrite(pinDirektVerbTank, 1);
-        digitalWrite(pinPumpenVent, 1);
+        digitalWrite(pinDirektVerbTank, 0);
+        digitalWrite(pinPumpenVent, 0);
         }
       if(kleinerTank >= 1000 && currentlyFill){
         currentlyFill = false;
-        digitalWrite(pinDirektVerbTank, 1);
-        digitalWrite(pinPumpenVent, 1);
+        digitalWrite(pinDirektVerbTank, 0);
+        digitalWrite(pinPumpenVent, 0);
         }
     
       if(kleinerTank >=1500 && grosserTank < 8000){
-        digitalWrite(pinDirektVerbTank, 1);
-        digitalWrite(pinPumpenVent, 0);
-        digitalWrite(transformatorRelayPin, 0);
+        digitalWrite(pinDirektVerbTank, 0);
+        digitalWrite(pinPumpenVent, 1);
+        digitalWrite(transformatorRelayPin, 1);
         }
       }
     
@@ -199,21 +199,21 @@ void loop() { //////////////////////////////////////////////////////////////////
       }
 
     else if(input.indexOf("getState") >= 0){
-      client.println(String(digitalRead(pinDirektVerbTank)) + ";" + String(digitalRead(pinPumpenVent)));
+      client.println(String(!digitalRead(pinDirektVerbTank)) + ";" + String(!digitalRead(pinPumpenVent)));
       }
 
     else if(input.indexOf("fillBigTank") >= 0){
       client.println("ok");
-      digitalWrite(pinDirektVerbTank, 1);
-      digitalWrite(pinPumpenVent, 0);
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(pinDirektVerbTank, 0);
+      digitalWrite(pinPumpenVent, 1);
+      digitalWrite(transformatorRelayPin, 1);
       }
 
     else if(input.indexOf("fillLowTank") >= 0){
       client.println("ok");
-      digitalWrite(pinDirektVerbTank, 0);
-      digitalWrite(pinPumpenVent, 1);
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(pinDirektVerbTank, 1);
+      digitalWrite(pinPumpenVent, 0);
+      digitalWrite(transformatorRelayPin, 1);
       }
       
     else if(input.indexOf("pumpState") >= 0){
@@ -395,17 +395,17 @@ void loop() { //////////////////////////////////////////////////////////////////
     
     }
 
-    if(digitalRead(switchPin_1)==1 &&
-       digitalRead(switchPin_2)==1 &&
-       digitalRead(switchPin_3)==1 &&
-       digitalRead(switchPin_4)==1 &&
-       digitalRead(switchPin_5)==1 &&
-       digitalRead(switchPin_6)==1 &&
-       digitalRead(switchPin_7)==1 &&
-       digitalRead(switchPin_8)==1 &&
-       digitalRead(pinPumpenVent)==1 &&
-       digitalRead(pinDirektVerbTank)==1){
-      digitalWrite(transformatorRelayPin, 1);
+    if(digitalRead(switchPin_1)==0 &&
+       digitalRead(switchPin_2)==0 &&
+       digitalRead(switchPin_3)==0 &&
+       digitalRead(switchPin_4)==0 &&
+       digitalRead(switchPin_5)==0 &&
+       digitalRead(switchPin_6)==0 &&
+       digitalRead(switchPin_7)==0 &&
+       digitalRead(switchPin_8)==0 &&
+       digitalRead(pinPumpenVent)==0 &&
+       digitalRead(pinDirektVerbTank)==0){
+      digitalWrite(transformatorRelayPin, 0);
     }
 
 
@@ -423,53 +423,53 @@ void driveJob(String jobStr){
     Serial.println("drive Job: " + jobStr);
 
     if(jobStr.indexOf("Unit1;") > 0){
-      digitalWrite(switchPin_1, 0);
+      digitalWrite(switchPin_1, 1);
       Serial.println("switchOnPin_1");
 
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(transformatorRelayPin, 1);
       }
     if(jobStr.indexOf("Unit2;") > 0){
-      digitalWrite(switchPin_2, 0);
+      digitalWrite(switchPin_2, 1);
       Serial.println("switchOnPin_2");
 
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(transformatorRelayPin, 1);
       }
     if(jobStr.indexOf("Unit3;") > 0){
-      digitalWrite(switchPin_3, 0);
+      digitalWrite(switchPin_3, 1);
       Serial.println("switchOnPin_3");
 
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(transformatorRelayPin, 1);
     }
     if(jobStr.indexOf("Unit4;") > 0){
-      digitalWrite(switchPin_4, 0);
+      digitalWrite(switchPin_4, 1);
       Serial.println("switchOnPin_4");
 
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(transformatorRelayPin, 1);
       }
 
     if(jobStr.indexOf("Unit5;") > 0){
-      digitalWrite(switchPin_5, 0);
+      digitalWrite(switchPin_5, 1);
       Serial.println("switchOnPin_5");
 
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(transformatorRelayPin, 1);
       }
     if(jobStr.indexOf("Unit6;") > 0){
-      digitalWrite(switchPin_6, 0);
+      digitalWrite(switchPin_6, 1);
       Serial.println("switchOnPin_6");
 
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(transformatorRelayPin, 1);
       }
     if(jobStr.indexOf("Unit7;") > 0){
-      digitalWrite(switchPin_7, 0);
+      digitalWrite(switchPin_7, 1);
       Serial.println("switchOnPin_7");
 
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(transformatorRelayPin, 1);
     }
     if(jobStr.indexOf("Unit8;") > 0){
-      digitalWrite(switchPin_8, 0);
+      digitalWrite(switchPin_8, 1);
       Serial.println("switchOnPin_7");
 
-      digitalWrite(transformatorRelayPin, 0);
+      digitalWrite(transformatorRelayPin, 1);
       }
     
     
@@ -479,36 +479,36 @@ void stopJob(String jobStr){
 
 
   if(jobStr.indexOf("Unit1;") > 0){
-      digitalWrite(switchPin_1, 1);
+      digitalWrite(switchPin_1, 0);
       Serial.println("switchOffPin_1");
       }
     if(jobStr.indexOf("Unit2;") > 0){
-      digitalWrite(switchPin_2, 1);
+      digitalWrite(switchPin_2, 0);
       Serial.println("switchOffPin_2");
       }
     if(jobStr.indexOf("Unit3;") > 0){
-      digitalWrite(switchPin_3, 1);
+      digitalWrite(switchPin_3, 0);
       Serial.println("switchOffPin_3");
     }
     if(jobStr.indexOf("Unit4;") > 0){
-      digitalWrite(switchPin_4, 1);
+      digitalWrite(switchPin_4, 0);
       Serial.println("switchOffPin_4");
       }
 
     if(jobStr.indexOf("Unit5;") > 0){
-      digitalWrite(switchPin_5, 1);
+      digitalWrite(switchPin_5, 0);
       Serial.println("switchOffPin_5");
       }
     if(jobStr.indexOf("Unit6;") > 0){
-      digitalWrite(switchPin_6, 1);
+      digitalWrite(switchPin_6, 0);
       Serial.println("switchOffPin_6");
       }
     if(jobStr.indexOf("Unit7;") > 0){
-      digitalWrite(switchPin_7, 1);
+      digitalWrite(switchPin_7, 0);
       Serial.println("switchOffPin_7");
     }
     if(jobStr.indexOf("Unit8;") > 0){
-      digitalWrite(switchPin_8, 1);
+      digitalWrite(switchPin_8, 0);
       Serial.println("switchOffPin_7");
       }
   }
