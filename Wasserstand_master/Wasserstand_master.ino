@@ -23,11 +23,11 @@ long entfernung2=0;
 #define timeout 5000
 #define timeoutPin 2
 #define waterBetweenSensors 500
-#define switchPin_1 30
-#define switchPin_2 53
-#define switchPin_3 32
-#define switchPin_4 52
-#define switchPin_5 41
+#define switchPin_1 32 //Ueber einfahrt
+#define switchPin_2 31 //Rechts neben Haustür
+#define switchPin_3 43 //Boeschung
+#define switchPin_4 42 //Unter Solar
+#define switchPin_5 41 //Unter Einfahrt 
 #define switchPin_6 35
 #define switchPin_7 36
 #define switchPin_8 37
@@ -37,7 +37,7 @@ long entfernung2=0;
 #define btTX 3
 
 #define pinDirektVerbTank 47
-#define pinPumpenVent 49
+#define pinPumpenVent 33
 
 
 int maxTimeouts = 3;
@@ -49,7 +49,7 @@ String currentWaterLevel = "";
 
 
 boolean currentlyFill = false; //kleinerTank wird befüllt?
-boolean pumpAutoMode = true;
+boolean pumpAutoMode = false;
 
 SoftwareSerial BTSerial(5, 6); // RX, TX
 
@@ -214,6 +214,12 @@ void loop() { //////////////////////////////////////////////////////////////////
       digitalWrite(pinDirektVerbTank, 1);
       digitalWrite(pinPumpenVent, 0);
       digitalWrite(transformatorRelayPin, 1);
+      }
+
+    else if(input.indexOf("stopPump") >= 0){
+      client.println("ok");
+      digitalWrite(pinDirektVerbTank, 0);
+      digitalWrite(pinPumpenVent, 0);
       }
       
     else if(input.indexOf("pumpState") >= 0){
