@@ -1,12 +1,18 @@
 #include <SoftwareSerial.h>
 #include <SPI.h>
 #include <Ethernet.h>
+#include <SD.h>
 
-byte mac[] = { 0x90, 0xA2, 0xDA, 0x0E, 0xAC, 0x68 }; //adresse mac de la carte
-IPAddress ip(192,168,1,103);
+
+byte mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x17, 0xC9 }; //adresse mac de la carte
+IPAddress ip(192,168,1,104);
+//String serverIP = "192.168.1.169";
+byte serverIP[] = { 192, 168, 1, 111 };
+int serverPort = 5000;
 IPAddress subnet( 255, 255, 255, 0 );
 
 EthernetServer server(4711);
+EthernetClient client;
 
 int trigger=22; 
 int echo=23; 
@@ -39,6 +45,8 @@ long entfernung2=0;
 #define pinDirektVerbTank 47
 #define pinPumpenVent 33
 
+#define FILENAME_autonoff "autonoff.txt"
+
 
 int maxTimeouts = 3;
 int currentTimeouts = 0;
@@ -54,6 +62,8 @@ boolean pumpAutoMode = false;
 SoftwareSerial BTSerial(5, 6); // RX, TX
 
 
+
+
 String jobs[128];
 int letzteFreieStelle = 0;
 
@@ -63,15 +73,27 @@ unsigned long jobUntil = 0;
 
 void setup() {/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SETUP
 
+
+  /////////ETHERNET SERVER
   Ethernet.begin(mac, ip);
   server.begin();
   
-
-
   Serial.begin(9600);
   BTSerial.begin(9600);
-
   Serial.println(Ethernet.localIP());
+
+  
+  String pumpStateServer = getVarFromServer("pumpAutoMode");
+  if(pumpStateServer.indexOf("1") >= 0){
+    pumpAutoMode = true;
+    Serial.println("Enabled pumpAutoMode by Server");
+  }
+  if(pumpStateServer.indexOf("0") >= 0){
+    pumpAutoMode = false;
+    Serial.println("Disabled pumpAutoMode by Server");
+  }
+
+  
 
   pinMode(timeoutPin, OUTPUT);
 
@@ -108,8 +130,6 @@ void setup() {//////////////////////////////////////////////////////////////////
   pinMode(trigger, OUTPUT); // Sets the trigPin as an Output
   pinMode(echo, INPUT); // Sets the echoPin as an Input
 
-
-  //Serial.println("Wasserstandsanzeige");
 
 }
 
@@ -230,9 +250,11 @@ void loop() { //////////////////////////////////////////////////////////////////
       client.println("ok");
       if(input.indexOf("true") >= 0){
         pumpAutoMode = true;
+        setVarOnServer("pumpAutoMode","1");
         }
       else{
         pumpAutoMode = false;
+        setVarOnServer("pumpAutoMode","0");
         }
       }      
 
@@ -280,7 +302,7 @@ void loop() { //////////////////////////////////////////////////////////////////
 
   
 
-  if(BTSerial.available()){
+  if(false){
     String input = BTSerial.readString();
     
     if(input.indexOf("howMuchW") >= 0){
@@ -586,7 +608,7 @@ String measure() {  ////////////////////////////////////////////////////////////
 int getExternWaterLevel(){
   int currentWaterLevel = 0;
   int anzTanks = 8;
-  int abstand = 10;
+  int abstand = 2;
   digitalWrite(trigger2, LOW); 
   delay(5); 
   digitalWrite(trigger2, HIGH); 
@@ -594,7 +616,8 @@ int getExternWaterLevel(){
   digitalWrite(trigger2, LOW);
   dauer2 = pulseIn(echo2, HIGH);
   entfernung2 = (dauer2/2) * 0.03432; 
-  if (entfernung2 > 100 || entfernung2 <= 0) 
+  Serial.println("Big tank Distance in cm: " + String(entfernung2));
+  if (entfernung2 > 100+abstand || entfernung2 <= 0) 
   {
   //return
   }
@@ -604,9 +627,6 @@ int getExternWaterLevel(){
     currentWaterLevel = level * 10 * anzTanks;
   }
 
-  if(currentWaterLevel > 1000 * anzTanks){
-    currentWaterLevel = 1000 * anzTanks;
-  }
  return currentWaterLevel;
 }
 
@@ -614,7 +634,7 @@ int getExternWaterLevel(){
 int getWaterLevel(){
   int currentWaterLevel = 0;
   int anzTanks = 4;
-  int abstand = 10;
+  int abstand = 60;
   digitalWrite(trigger, LOW); 
   delay(5); 
   digitalWrite(trigger, HIGH); 
@@ -622,7 +642,8 @@ int getWaterLevel(){
   digitalWrite(trigger, LOW);
   dauer = pulseIn(echo, HIGH);
   entfernung = (dauer/2) * 0.03432; 
-  if (entfernung > 100 || entfernung <= 0) 
+  Serial.println("Distance in cm: " + String(entfernung));
+  if (entfernung > 100+abstand || entfernung <= 0) 
   {
   //return
   }
@@ -632,9 +653,6 @@ int getWaterLevel(){
     currentWaterLevel = level * 10 * anzTanks;
   }
 
-  if(currentWaterLevel > 1000 * anzTanks){
-    currentWaterLevel = 1000 * anzTanks;
-  }
  return currentWaterLevel;
 }
 
@@ -749,11 +767,52 @@ int getValueForSensor(int sensorNum){///////////////////////////////////////////
 
 
 
+String getVarFromServer(String key){
 
 
+  if(client.connect(serverIP, serverPort)) {
+    // if connected:
+    // make a HTTP request:
+    // send HTTP header
+    client.println("GET /var/" + key + " HTTP/1.1");
+    client.println(); // end HTTP header
+
+    String fullText = "";
+    while(client.connected()) {
+      if(client.available()){
+        // read an incoming byte from the server and print it to serial monitor:
+        fullText += String(char(client.read()));
+        
+      }
+    }
+
+    // the server's disconnected, stop the client:
+    client.stop();
 
 
+    int indexOf2nz = fullText.indexOf("\r\n\r\n");
 
+    return (fullText.substring(indexOf2nz+4));
+    
+  } else {// if not connected:
+  }
+
+}
+
+void setVarOnServer(String key, String value){ 
+  
+  if(client.connect(serverIP, serverPort)) {
+    // if connected:
+    // make a HTTP request:
+    // send HTTP header
+    client.println("POST /var/" + key + "/" + value + " HTTP/1.1");
+    client.println(); // end HTTP header
+
+    client.stop();
+    
+  } else {// if not connected:
+  }
+}
 
 
 
