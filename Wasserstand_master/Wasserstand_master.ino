@@ -58,7 +58,6 @@ String currentWaterLevel = "";
 boolean currentlyFill = false; //kleinerTank wird befüllt?
 boolean pumpAutoMode = false;
 
-SoftwareSerial BTSerial(5, 6); // RX, TX
 
 
 
@@ -166,7 +165,7 @@ void loop() { //////////////////////////////////////////////////////////////////
                            //digitalWrite(transformatorRelayPin, 1);
                     }
                     
-                    else if(grosserTank > 8000 || (kleinerTank < 300 && grosserTank > 300 && currentlyFill)){
+                    else if(grosserTank >= 8000 || (kleinerTank < 300 && grosserTank > 300 && currentlyFill)){
                       digitalWrite(pinDirektVerbTank, 0);
                           digitalWrite(pinPumpenVent, 0);
                     }
@@ -310,92 +309,7 @@ void loop() { //////////////////////////////////////////////////////////////////
 
   
 
-  if(false){
-    String input = BTSerial.readString();
-    
-    if(input.indexOf("howMuchW") >= 0){
-      BTSerial.println(currentWaterLevel);
-      
-      }
-
-    else if(input.indexOf("clearJobList") >= 0){
-      //memset(jobs, "-", sizeof(jobs));
-
-      jobLengthInMinutes = 0;
-      jobUntil = 0;
-      
-      for(int i = 1; i < letzteFreieStelle; i++){
-        if(!jobs[i].equals("")){
-          jobs[i] = "";
-          }
-        }
-      
-      BTSerial.println("ok");
-      }
-
-    else if(input.indexOf("getState") >= 0){
-      BTSerial.println(String(digitalRead(pinDirektVerbTank)) + ";" + String(digitalRead(pinPumpenVent)));
-      }
-
-    else if(input.indexOf("fillBigTank") >= 0){
-      BTSerial.println("ok");
-      digitalWrite(pinDirektVerbTank, 1);
-      digitalWrite(pinPumpenVent, 0);
-      }
-
-    else if(input.indexOf("fillLowTank") >= 0){
-      BTSerial.println("ok");
-      digitalWrite(pinDirektVerbTank, 0);
-      digitalWrite(pinPumpenVent, 1);
-      }
-      
-    else if(input.indexOf("pumpState") >= 0){
-      BTSerial.println(String(pumpAutoMode));
-      }
-
-    else if(input.indexOf("newPump") >= 0){
-      BTSerial.println("ok");
-      if(input.indexOf("true") >= 0){
-        pumpAutoMode = true;
-        }
-      else{
-        pumpAutoMode = false;
-        }
-      }      
-
-    else if(input.indexOf("getJobs") >= 0){
-      String rueckgabe = "";
-      for(int i  = 0; i <= letzteFreieStelle; i++){
-        rueckgabe += jobs[i] + "###";
-      }
-      BTSerial.println(rueckgabe);
-      }
-
-    else if(input.indexOf("addToList:") >= 0){
-      String cut = input.substring(10);
-
-      jobs[letzteFreieStelle] = cut;
-      letzteFreieStelle++;
-
-      if(letzteFreieStelle == 1){
-        jobBegin = millis();
-        jobLengthInMinutes = getValue(jobs[letzteFreieStelle-1], '#', 1).toInt();
-        jobUntil = jobBegin + (60000 * jobLengthInMinutes);
-        driveJob(jobs[0]);
-        }
-
-      
-
-      Serial.println(jobs[letzteFreieStelle-1]);
-      Serial.println(jobLengthInMinutes);
-
-      BTSerial.println("ok");
-      
-      }
-    else{
-      BTSerial.println("nothing found " + input);
-      }
-  }
+  
 
   if(letzteFreieStelle != 0){
     unsigned long tmp = millis();
@@ -443,15 +357,6 @@ void loop() { //////////////////////////////////////////////////////////////////
        digitalRead(pinDirektVerbTank)==0){
       digitalWrite(transformatorRelayPin, 0);
     }
-
-
-  
-
-
-
-
-
-  
 
 }
 
@@ -555,44 +460,6 @@ void stopJob(String jobStr){
 
 String measure() {  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////MEASURE
   lastMeasure = millis();
-//  String waterStr = "";
-//  Serial.println("howMuchWater?");
-//
-//  String line = Serial.readString();
-//
-//  long start = millis();
-//
-//  while (line == "") {
-//    int tmp = millis() - start;
-//    if (tmp >= timeout) {
-//      line = "timeout";
-//
-//      //      if(currentTimeouts >= maxTimeouts){
-//      //        currentTimeouts = 0;
-//      //        digitalWrite(timeoutPin, HIGH);
-//      //        delay(250);
-//      //        digitalWrite(timeoutPin, LOW);
-//      //        Serial.println("too many timeouts");
-//      //        }
-//      //
-//      //      currentTimeouts++;
-//
-//
-//      break;
-//    }
-//
-////    }
-//
-//
-//    line = Serial.readString();
-//  }
-//
-//
-//
-//  //}
-//  Serial.println(line + "returned");
-//  line = line.substring(11,line.length()-3);
-
 
   
   int waterLevel_bigTank = getExternWaterLevel();
@@ -605,10 +472,6 @@ String measure() {  ////////////////////////////////////////////////////////////
   String waterLevel_str = String(waterLevel_bigTank) + ";" + String(waterLevel_smallTank) + ";" + String(waterLevel);
 
   Serial.println(waterLevel_str);
-  //String waterLevel_str = String(waterLevel_bigTank);
-  //Serial.println(waterLevel_str);
-  
-  
   
   return waterLevel_str;
 }
@@ -663,105 +526,6 @@ int getWaterLevel(){
 
  return currentWaterLevel;
 }
-
-
-int getOLDWaterLevel(){////////////////////////////////////////////////////////////////////////////////////////////7/////////////////////////////////////////////////////////////////////////////////GET WATER LEVEL
-  int currentWaterLevel = 0;
-
-  for(int i = 0; i <= 7; i++){
-    if(getValueForSensor(i) == 0){
-        currentWaterLevel += waterBetweenSensors;
-      }
-    else{
-      break;
-      }
-    }
-
-
-  if(getValueForSensor(6) == 0 && getValueForSensor(7) == 0){
-      currentWaterLevel = 4000;
-  }
-
-  return currentWaterLevel;
-
-
-  }
-
-
-
-
-int getValueForSensor(int sensorNum){/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////GET VALUE FOR SENSOR
-
-  switch(sensorNum){
-    case 0:
-      return analogRead(A0);
-      break;
-    case 1:
-      return analogRead(A1);
-      break;
-    case 2:
-      return analogRead(A2);
-      break;
-    case 3:
-      return analogRead(A3);
-      break;
-    case 4:
-      return analogRead(A4);
-      break;
-    case 5:
-      return analogRead(A5);
-      break;
-    case 6:
-      return analogRead(A6);
-      break;
-    case 7:
-      return analogRead(A7);
-      break;
-//    case 8:
-//      return analogRead(A8);
-//      break;
-//    case 9:
-//      return analogRead(A9);
-//      break;
-//    case 10:
-//      return analogRead(A10);
-//      break;
-//    case 11:
-//      return analogRead(A11);
-//      break;
-//    case 12:
-//      return analogRead(A12);
-//      break;
-//    case 13:
-//      return analogRead(A13);
-//      break;
-//    case 14:
-//      return analogRead(A14);
-//      break;
-//    case 15:
-//      return analogRead(A15);
-//      break;
-
-    }
-    return 100;
-
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
