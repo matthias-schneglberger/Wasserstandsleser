@@ -1,11 +1,10 @@
 #include <SoftwareSerial.h>
 #include <SPI.h>
 #include <Ethernet.h>
-#include <SD.h>
 
 
 byte mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x17, 0xC9 }; //adresse mac de la carte
-IPAddress ip(192,168,1,104);
+IPAddress ip(192,168,1,103);
 //String serverIP = "192.168.1.169";
 byte serverIP[] = { 192, 168, 1, 111 };
 int serverPort = 5000;
@@ -149,29 +148,38 @@ void loop() { //////////////////////////////////////////////////////////////////
     int kleinerTank = getValue(measured, ';', 1).toInt();
     int insgesamt = getValue(measured, ';', 2).toInt();
 
-    //currentlyFill == kleinerTank gets filled
+    //currentlyFill == kleinerTank soll befüllt werden
 
     if(pumpAutoMode){
-      if(kleinerTank < 500 && grosserTank >= 500){
-        currentlyFill = true;
-        digitalWrite(pinDirektVerbTank, 1);
-        digitalWrite(pinPumpenVent, 0);
-        digitalWrite(transformatorRelayPin, 1);
-        }
-      if((kleinerTank >= 500 && !currentlyFill) || (kleinerTank < 200 && grosserTank < 100)){
-        digitalWrite(pinDirektVerbTank, 0);
-        digitalWrite(pinPumpenVent, 0);
-        }
-      if(kleinerTank >= 1000 && currentlyFill){
-        currentlyFill = false;
-        digitalWrite(pinDirektVerbTank, 0);
-        digitalWrite(pinPumpenVent, 0);
-        }
+                    if(kleinerTank > 500 && grosserTank < 8000){
+                      currentlyFill = false;
+                          //digitalWrite(pinDirektVerbTank, 0);
+                          digitalWrite(pinPumpenVent, 1);
+                          digitalWrite(transformatorRelayPin, 1);
+                    }
+                    
+                    
+                    else if((kleinerTank < 300 && grosserTank > 300 && !currentlyFill) || (kleinerTank < 100 && grosserTank > 500)){ ////// noch Platz im kleinen Tank? bei nicht füllen   ||    überhaupt noch platz?
+                      currentlyFill = true;
+                            //digitalWrite(pinDirektVerbTank, 1);
+                          digitalWrite(pinPumpenVent, 0);
+                           //digitalWrite(transformatorRelayPin, 1);
+                    }
+                    
+                    else if(grosserTank > 8000 || (kleinerTank < 300 && grosserTank > 300 && currentlyFill)){
+                      digitalWrite(pinDirektVerbTank, 0);
+                          digitalWrite(pinPumpenVent, 0);
+                    }
     
-      if(kleinerTank >=1500 && grosserTank < 8000){
-        digitalWrite(pinDirektVerbTank, 0);
-        digitalWrite(pinPumpenVent, 1);
-        digitalWrite(transformatorRelayPin, 1);
+//      if(kleinerTank >=1500 && grosserTank < 8000){
+//        digitalWrite(pinDirektVerbTank, 0);
+//        digitalWrite(pinPumpenVent, 1);
+//        digitalWrite(transformatorRelayPin, 1);
+//        }
+      }
+      else{
+        if(digitalRead(pinPumpenVent) == 1 && kleinerTank <= 50){
+          digitalWrite(pinPumpenVent, 0);
         }
       }
     
@@ -792,9 +800,12 @@ String getVarFromServer(String key){
 
     int indexOf2nz = fullText.indexOf("\r\n\r\n");
 
+    Serial.println("From Server: " +fullText.substring(indexOf2nz+4));
+
     return (fullText.substring(indexOf2nz+4));
     
   } else {// if not connected:
+    Serial.println("No connection to Server");
   }
 
 }
