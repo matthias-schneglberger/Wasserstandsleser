@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 #include <SPI.h>
 #include <Ethernet.h>
+#include <Wire.h>
 
 
 byte mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x17, 0xC9 }; //adresse mac de la carte
@@ -11,21 +12,19 @@ IPAddress subnet(255, 255, 255, 0);
 byte serverIP[] = { 10,0,0,2 };
 int serverPort = 5000;
 
+unsigned char ok_flag;
+unsigned char fail_flag;
+
+unsigned short lenth_val = 0;
+unsigned char i2c_rx_buf[16];
+unsigned char dirsend_flag = 0;
+
 EthernetServer server(4711);
 EthernetClient client;
 
-int trigger=22; 
-int echo=23; 
-long dauer=0; 
-long entfernung=0; 
 
 
-int trigger2=24;  //2 => extern!
-int echo2=25; 
-long dauer2=0; 
-long entfernung2=0; 
-
-
+#define TCAADDR 0x70
 #define timeout 5000
 //#define timeoutPin 2
 #define switchPin_1 32 //Ueber einfahrt
@@ -38,6 +37,8 @@ long entfernung2=0;
 #define switchPin_7 36
 #define switchPin_8 37
 #define transformatorRelayPin 48 //klackern kommt von hier
+#define I2CPin_SENSOR_BIG 0 //Extern
+#define I2CPin_SENSOR_SMALL 1
 
 //#define btRX 4
 //#define btTX 3
@@ -80,6 +81,7 @@ void setup() {//////////////////////////////////////////////////////////////////
   
   Serial.begin(9600);
   Serial.println(Ethernet.localIP());
+  Wire.begin();
 
   
   String pumpStateServer = getVarFromServer("pumpAutoMode");
@@ -134,12 +136,6 @@ void setup() {//////////////////////////////////////////////////////////////////
   digitalWrite(switchPin_8, 0);
   digitalWrite(transformatorRelayPin, 0);
 
-  pinMode(trigger2, OUTPUT); // Sets the trigPin as an Output
-  pinMode(echo2, INPUT); // Sets the echoPin as an Input
-  
-  pinMode(trigger, OUTPUT); // Sets the trigPin as an Output
-  pinMode(echo, INPUT); // Sets the echoPin as an Input
-
 
 }
 
@@ -192,16 +188,9 @@ void loop() { //////////////////////////////////////////////////////////////////
         }
       }
     
-    
-
-    
-    
-    
-    Serial.println(insgesamt);
-    
-    
   }
 
+  Serial.println("Doing something!");
   
   if(server.available()){  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SERVER
     EthernetClient client = server.accept();
@@ -471,18 +460,13 @@ void stopJob(String jobStr){
 String measure() {  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////MEASURE
   lastMeasure = millis();
 
-  
   int waterLevel_bigTank = getExternWaterLevel();
   int waterLevel_smallTank = getWaterLevel();
   int waterLevel = waterLevel_bigTank + waterLevel_smallTank;
 
-
-
-
   String waterLevel_str = String(waterLevel_bigTank) + ";" + String(waterLevel_smallTank) + ";" + String(waterLevel);
 
   Serial.println(waterLevel_str);
-  
   return waterLevel_str;
 }
 
@@ -490,14 +474,9 @@ int getExternWaterLevel(){
   int currentWaterLevel = 0;
   int anzTanks = 8;
   int abstand = 9;
-  digitalWrite(trigger2, LOW); 
-  delay(5); 
-  digitalWrite(trigger2, HIGH); 
-  delay(10);
-  digitalWrite(trigger2, LOW);
-  dauer2 = pulseIn(echo2, HIGH);
-  entfernung2 = (dauer2/2) * 0.03432; 
-  Serial.println("Big tank Distance in cm: " + String(entfernung2));
+  int entfernung2 = ReadDistance(I2CPin_SENSOR_BIG);
+  Serial.print("Big tank Distance in cm: ");
+  Serial.println(entfernung2);
   if (entfernung2 > 100+abstand || entfernung2 <= 0) 
   {
   //return
@@ -516,14 +495,9 @@ int getWaterLevel(){
   int currentWaterLevel = 0;
   int anzTanks = 4;
   int abstand = 60;
-  digitalWrite(trigger, LOW); 
-  delay(5); 
-  digitalWrite(trigger, HIGH); 
-  delay(10);
-  digitalWrite(trigger, LOW);
-  dauer = pulseIn(echo, HIGH);
-  entfernung = (dauer/2) * 0.03432; 
-  Serial.println("Distance in cm: " + String(entfernung));
+  int entfernung = ReadDistance(I2CPin_SENSOR_SMALL); 
+  Serial.print("Distance in cm: ");
+  Serial.println(entfernung);
   if (entfernung > 100+abstand || entfernung <= 0) 
   {
   //return
@@ -539,6 +513,40 @@ int getWaterLevel(){
 
 
 
+void tcaselect(uint8_t i) {
+  if (i > 7) return;
+
+  Wire.beginTransmission(TCAADDR);
+  Wire.write(1 << i);
+  Wire.endTransmission();
+}
+void SensorRead(unsigned char addr, unsigned char* datbuf, unsigned char cnt){
+  unsigned short result = 0;
+  // step 1: instruct sensor to read echoes
+  Wire.beginTransmission(82); // transmit to device #82 (0x52)
+  // the address specified in the datasheet is 164 (0xa4)
+  // but i2c adressing uses the high 7 bits so it's 82
+  Wire.write(byte(addr));      // sets distance data address (addr)
+  Wire.endTransmission();      // stop transmitting
+  // step 2: wait for readings to happen
+  delay(1);                   // datasheet suggests at least 30uS
+  // step 3: request reading from sensor
+  Wire.requestFrom(82, cnt);    // request cnt bytes from slave device #82 (0x52)
+  // step 5: receive reading from sensor
+  if (cnt <= Wire.available()) { // if two bytes were received
+    *datbuf++ = Wire.read();  // receive high byte (overwrites previous reading)
+    *datbuf++ = Wire.read(); // receive low byte as lower 8 bits
+  }
+}
+int ReadDistance(int sensor) {
+  tcaselect(sensor);
+  delay(150);
+  SensorRead(0x00, i2c_rx_buf, 2);
+  lenth_val = i2c_rx_buf[0];
+  lenth_val = lenth_val << 8;
+  lenth_val |= i2c_rx_buf[1];
+  return lenth_val/10;
+}
 
 
 
