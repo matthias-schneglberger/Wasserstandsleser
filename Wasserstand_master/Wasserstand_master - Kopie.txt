@@ -162,7 +162,7 @@ void loop() { //////////////////////////////////////////////////////////////////
     //currentlyFill == kleinerTank soll befüllt werden
 
     if(pumpAutoMode){
-                    if((kleinerTank > 1500 && grosserTank < 8000 && !currentlyFillMax) ||(kleinerTank > 1500 && grosserTank < 7500 && currentlyFillMax)){
+                    if((kleinerTank > 500 && grosserTank < 7800 && !currentlyFillMax) ||(kleinerTank > 500 && grosserTank < 7000 && currentlyFillMax)){
                       currentlyFill = false;
                       currentlyFillMax = false;
                           //digitalWrite(pinDirektVerbTank, 0);
@@ -171,14 +171,14 @@ void loop() { //////////////////////////////////////////////////////////////////
                     }
                     
                     
-                    else if((kleinerTank < 1000 && grosserTank > 300 && !currentlyFill) || (kleinerTank < 1000 && grosserTank > 500)){ ////// noch Platz im kleinen Tank? bei nicht füllen   ||    überhaupt noch platz?
+                    else if((kleinerTank < 300 && grosserTank > 300 && !currentlyFill) || (kleinerTank < 100 && grosserTank > 500)){ ////// noch Platz im kleinen Tank? bei nicht füllen   ||    überhaupt noch platz?
                       currentlyFill = true;
                             //digitalWrite(pinDirektVerbTank, 1);
                           digitalWrite(pinPumpenVent, 0);
                            //digitalWrite(transformatorRelayPin, 1);
                     }
                     
-                    else if(grosserTank >= 8000 || (kleinerTank < 1000 && grosserTank > 300 && currentlyFill)){
+                    else if(grosserTank >= 7800 || (kleinerTank < 300 && grosserTank > 300 && currentlyFill)){
                       currentlyFillMax = true;
                       digitalWrite(pinDirektVerbTank, 0);
                           digitalWrite(pinPumpenVent, 0);
@@ -489,7 +489,7 @@ String measure() {  ////////////////////////////////////////////////////////////
 int getExternWaterLevel(){
   int currentWaterLevel = 0;
   int anzTanks = 8;
-  int abstand = 9;
+  int abstand = 2;
   digitalWrite(trigger2, LOW); 
   delay(5); 
   digitalWrite(trigger2, HIGH); 
