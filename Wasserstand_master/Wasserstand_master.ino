@@ -39,20 +39,17 @@ EthernetClient client;
 #define transformatorRelayPin 48 //klackern kommt von hier
 #define I2CPin_SENSOR_BIG 0 //Extern
 #define I2CPin_SENSOR_SMALL 1
-
-//#define btRX 4
-//#define btTX 3
-
+#define toggleWaterSourcePin 50 // HIGH = Big Tank
+#define time_to_change_watersource_in_ms 120000 // 2 Minuten in eine Richtung!
 #define pinDirektVerbTank 47
 #define pinPumpenVent 33
 
-//#define FILENAME_autonoff "autonoff.txt"
 
-
-int maxTimeouts = 3;
+byte maxTimeouts = 3;
 int currentTimeouts = 0;
 int delayBetween = 5000;
-int lastMeasure = 0;
+unsigned long lastMeasure = 0;
+unsigned long tranformerFollowUpTimeUntil = 0;
 
 String currentWaterLevel = "";
 
@@ -61,9 +58,8 @@ boolean currentlyFill = false; //kleinerTank wird befüllt?
 boolean currentlyFillMax = false;
 boolean pumpAutoMode = false;
 
-
-
-
+boolean autoDetectingWaterSource = true;
+boolean isCurrentWaterSourceSmallTank = true;
 
 String jobs[128];
 int letzteFreieStelle = 0;
@@ -83,7 +79,10 @@ void setup() {//////////////////////////////////////////////////////////////////
   Serial.println(Ethernet.localIP());
   Wire.begin();
 
+  scanTcaDevices();
   
+
+  //Pump auto stuff from Server:
   String pumpStateServer = getVarFromServer("pumpAutoMode");
   if(pumpStateServer.indexOf("1") >= 0){
     pumpAutoMode = true;
@@ -94,6 +93,7 @@ void setup() {//////////////////////////////////////////////////////////////////
     Serial.println("Disabled pumpAutoMode by Server");
   }
   else{
+    //Try again
     pumpStateServer = getVarFromServer("pumpAutoMode");
     if(pumpStateServer.indexOf("1") >= 0){
       pumpAutoMode = true;
@@ -102,6 +102,30 @@ void setup() {//////////////////////////////////////////////////////////////////
     else if(pumpStateServer.indexOf("0") >= 0){
       pumpAutoMode = false;
       Serial.println("Disabled pumpAutoMode by Server");
+    }
+  }
+
+
+  //AutoWaterSource stuff from Server:
+  String waterSourceModeServer = getVarFromServer("autoDetectingWaterSource");
+  if(waterSourceModeServer.indexOf("1") >= 0){
+    autoDetectingWaterSource = true;
+    Serial.println("Switched on autoWaterSourceMode by Server");
+  }
+  else if(waterSourceModeServer.indexOf("0") >= 0){
+    autoDetectingWaterSource = false;
+    Serial.println("Switched off autoWaterSourceMode by Server");
+  }
+  else{
+    //Try again
+    waterSourceModeServer = getVarFromServer("pumpAutoMode");
+    if(waterSourceModeServer.indexOf("1") >= 0){
+      autoDetectingWaterSource = true;
+      Serial.println("Switched on autoWaterSourceMode by Server");
+    }
+    else if(waterSourceModeServer.indexOf("0") >= 0){
+      autoDetectingWaterSource = false;
+      Serial.println("Switched off autoWaterSourceMode by Server");
     }
   }
 
@@ -136,11 +160,10 @@ void setup() {//////////////////////////////////////////////////////////////////
   digitalWrite(switchPin_8, 0);
   digitalWrite(transformatorRelayPin, 0);
 
-
+  selectSmallTankAsWaterSource();
 }
 
 void loop() { /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////LOOOOOOOOOOP
-
   
   int diff = millis() - lastMeasure;
   if (diff >= delayBetween) {
@@ -180,17 +203,26 @@ void loop() { //////////////////////////////////////////////////////////////////
                           digitalWrite(pinPumpenVent, 0);
                     }
     
+    }
+    else{
+      if(digitalRead(pinPumpenVent) == 1 && kleinerTank <= 0){
+        digitalWrite(pinPumpenVent, 0);
+        
       }
-      else{
-        if(digitalRead(pinPumpenVent) == 1 && kleinerTank <= 0){
-          digitalWrite(pinPumpenVent, 0);
-          
-        }
-      }
-    
-  }
+    }
 
-  Serial.println("Doing something!");
+    if(autoDetectingWaterSource){
+      if(kleinerTank > 1000 && !isCurrentWaterSourceSmallTank){
+        selectSmallTankAsWaterSource();
+      }
+      if(grosserTank > 1500 && kleinerTank < 200 && isCurrentWaterSourceSmallTank){
+        selectBigTankAsWaterSource();
+      }
+      if(grosserTank < 200 && !isCurrentWaterSourceSmallTank){
+        selectSmallTankAsWaterSource();
+      }
+    }
+  }
   
   if(server.available()){  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SERVER
     EthernetClient client = server.accept();
@@ -293,6 +325,28 @@ void loop() { //////////////////////////////////////////////////////////////////
       client.println("ok");
       
       }
+    else if(input.indexOf("waterSourceState") >= 0){
+      client.println(String(autoDetectingWaterSource));
+      }
+    else if(input.indexOf("newAutoWaterSourceState") >= 0){
+          client.println("ok");
+          if(input.indexOf("true") >= 0){
+            autoDetectingWaterSource = true;
+            setVarOnServer("autoDetectingWaterSource","1");
+            }
+          else{
+            autoDetectingWaterSource = false;
+            setVarOnServer("autoDetectingWaterSource","0");
+            }
+          }   
+     else if(input.indexOf("waterSourceSmall") >= 0){
+       selectSmallTankAsWaterSource();
+      client.println("ok");
+      }   
+     else if(input.indexOf("waterSourceBig") >= 0){
+       selectBigTankAsWaterSource();
+      client.println("ok");
+      }
     else{
       client.println("nothing found " + input);
       }
@@ -353,7 +407,9 @@ void loop() { //////////////////////////////////////////////////////////////////
        digitalRead(switchPin_7)==0 &&
        digitalRead(switchPin_8)==0 &&
        digitalRead(pinPumpenVent)==0 &&
-       digitalRead(pinDirektVerbTank)==0){
+       digitalRead(pinDirektVerbTank)==0 &&
+       millis() >= tranformerFollowUpTimeUntil
+       ){
       digitalWrite(transformatorRelayPin, 0);
     }
 
@@ -472,10 +528,10 @@ String measure() {  ////////////////////////////////////////////////////////////
 
 int getExternWaterLevel(){
   int currentWaterLevel = 0;
-  int anzTanks = 8;
+  byte anzTanks = 8;
   int abstand = 9;
   int entfernung2 = ReadDistance(I2CPin_SENSOR_BIG);
-  Serial.print("Big tank Distance in cm: ");
+  Serial.println("Big tank Distance in cm: ");
   Serial.println(entfernung2);
   if (entfernung2 > 100+abstand || entfernung2 <= 0) 
   {
@@ -489,14 +545,12 @@ int getExternWaterLevel(){
 
  return currentWaterLevel;
 }
-
-
 int getWaterLevel(){
   int currentWaterLevel = 0;
   int anzTanks = 4;
   int abstand = 60;
   int entfernung = ReadDistance(I2CPin_SENSOR_SMALL); 
-  Serial.print("Distance in cm: ");
+  Serial.println("Distance in cm: ");
   Serial.println(entfernung);
   if (entfernung > 100+abstand || entfernung <= 0) 
   {
@@ -547,13 +601,47 @@ int ReadDistance(int sensor) {
   lenth_val |= i2c_rx_buf[1];
   return lenth_val/10;
 }
+void scanTcaDevices(){
+   for (uint8_t t = 0; t < 8; t++) {
+    tcaselect(t);
+    Serial.print ("Port #");
+    Serial.println(t);
 
+    for (uint8_t addr = 0; addr <= 127; addr++) {
+      
+      // Don't report on the TCA9548A itself!
+      if (addr == TCAADDR) continue;
 
+      // See whether a device is on this address
+      Wire.beginTransmission(addr);
 
+      // See if something acknowledged the transmission
+      int response = Wire.endTransmission();
+      if (response == 0) {
+        Serial.print("Found I2C 0x");  Serial.println(addr, HEX);
+      }
+    }
 
+    // Slow the loop scanner down a bit
+    delay(1000);
+  }
+  Serial.println("\nScan completed.");
+}
 
-
-
+void selectBigTankAsWaterSource(){
+  Serial.println("Changing WaterSource to BigTanks");
+  digitalWrite(transformatorRelayPin, 1);
+  digitalWrite(toggleWaterSourcePin, 1);
+  tranformerFollowUpTimeUntil = time_to_change_watersource_in_ms*2 + millis();
+  isCurrentWaterSourceSmallTank = false;
+}
+void selectSmallTankAsWaterSource(){
+  Serial.println("Changing WaterSource to SmallTanks");
+  digitalWrite(transformatorRelayPin, 1);
+  digitalWrite(toggleWaterSourcePin, 0);
+  tranformerFollowUpTimeUntil = time_to_change_watersource_in_ms*2 + millis();
+  isCurrentWaterSourceSmallTank = true;
+}
 
 
 
@@ -591,7 +679,6 @@ String getVarFromServer(String key){
   }
 
 }
-
 void setVarOnServer(String key, String value){ 
   
   if(client.connect(serverIP, serverPort)) {
@@ -606,7 +693,6 @@ void setVarOnServer(String key, String value){
   } else {// if not connected:
   }
 }
-
 
 
 

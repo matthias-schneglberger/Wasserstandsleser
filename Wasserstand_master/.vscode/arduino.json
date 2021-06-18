@@ -1,0 +1,6 @@
+{
+    "port": "COM5",
+    "configuration": "cpu=atmega2560",
+    "board": "arduino:avr:mega",
+    "sketch": "Wasserstand_master.ino"
+}

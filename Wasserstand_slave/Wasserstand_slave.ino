@@ -1,194 +1,94 @@
-int waterBetweenSensors = 500;
-#define switchPin_5 30
-#define switchPin_6 31
-#define switchPin_7 32
-#define switchPin_8 33
-int timeLastMeasure = millis();
+#include <Wire.h>
 
-int trigger=12; 
-int echo=11; 
-long dauer=0; 
-long entfernung=0; 
+#define ArduinoNum 0   // 0-> intern; 1 -> extern
+
+unsigned char ok_flag;
+unsigned char fail_flag;
+
+unsigned short lenth_val = 0;
+unsigned char i2c_rx_buf[16];
+unsigned char dirsend_flag = 0;
 
 void setup() { /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////SETUP
   Serial.begin(9600);
+  Wire.begin();
 
-  pinMode(trigger, OUTPUT);
-  pinMode(echo, INPUT);
-
-  pinMode(switchPin_5, OUTPUT);
-  pinMode(switchPin_6, OUTPUT);
-  pinMode(switchPin_7, OUTPUT);
-  pinMode(switchPin_8, OUTPUT);
-
+  Serial.println("Testing - System:");
+  ScanDevices();
+  Serial.println("Done with Scanning for I2C devices -> Idle Mode");
 }
 
-void loop() {/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////LOOOOOOOOOOOOOOOOOOOOOOOOOP
+void loop() {/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////LOOOOOOOOOOP
 
   String readed = Serial.readString();
-
-
   while(readed.equals("")){readed = Serial.readString();}
-
-
   
-  //Serial.println(readed);
-  if(readed.indexOf("howMuchWater?") > 0){
-    //Serial.println("bindrinn");
-    timeLastMeasure = millis();
-    int waterLevel = getWaterLevel();
-    Serial.println("waterLevel:" + String(waterLevel) + ":");
-    }
-  else if(readed.indexOf("switchOnPin_5") > 0){
-    digitalWrite(switchPin_5, HIGH);
-    }
-  else if(readed.indexOf("switchOffPin_5") > 0){
-    digitalWrite(switchPin_5, LOW);
-    }
-  else if(readed.indexOf("switchOnPin_6") > 0){
-    digitalWrite(switchPin_6, HIGH);
-    }
-  else if(readed.indexOf("switchOffPin_6") > 0){
-    digitalWrite(switchPin_6, LOW);
-    }
-  else if(readed.indexOf("switchOnPin_7") > 0){
-    digitalWrite(switchPin_7, HIGH);
-    }
-  else if(readed.indexOf("switchOffPin_7") > 0){
-    digitalWrite(switchPin_7, LOW);
-    }
-  else if(readed.indexOf("switchOnPin_8") > 0){
-    digitalWrite(switchPin_8, HIGH);
-    }
-  else if(readed.indexOf("switchOffPin_8") > 0){
-    digitalWrite(switchPin_8, LOW);
-    }
-
-
-
-  if(millis() - timeLastMeasure > 300000){
-    //////////////////////////////////////////////////////IMPLEMENT reset master arduino
-    timeLastMeasure = millis();
-    }
+  Serial.println("New Message received:" + readed);
   
-
-
-  
-  
-  
-
+  if(readed.startsWith(String(ArduinoNum) + ":measure")){
+    Serial.println("distance:" + String(ReadDistance()));
+  }
 }
 
-int getOLDWaterLevel(){////////////////////////////////////////////////////////////////////////////////////////////7/////////////////////////////////////////////////////////////////////////////////GET WATER LEVEL
-  //Serial.println("getWater");
-  int currentWaterLevel = 0;
-  
-  for(int i = 0; i <= 15; i++){
-    //Serial.println(i);
-    //Serial.println("Reading Sensor #" + String(i) + ":" + getValueForSensor(i));
-    if(getValueForSensor(i) == 0){
-      
-        currentWaterLevel += waterBetweenSensors;
-
-        //Serial.println(currentWaterLevel);
-      }
-     
-    else{
-      break;
-      }
-    }
-
-
-  if(getValueForSensor(14) == 0 && getValueForSensor(15) == 0){
-      currentWaterLevel = 8000;
+void SensorRead(unsigned char addr, unsigned char* datbuf, unsigned char cnt){
+  unsigned short result = 0;
+  // step 1: instruct sensor to read echoes
+  Wire.beginTransmission(82); // transmit to device #82 (0x52)
+  // the address specified in the datasheet is 164 (0xa4)
+  // but i2c adressing uses the high 7 bits so it's 82
+  Wire.write(byte(addr));      // sets distance data address (addr)
+  Wire.endTransmission();      // stop transmitting
+  // step 2: wait for readings to happen
+  delay(1);                   // datasheet suggests at least 30uS
+  // step 3: request reading from sensor
+  Wire.requestFrom(82, cnt);    // request cnt bytes from slave device #82 (0x52)
+  // step 5: receive reading from sensor
+  if (cnt <= Wire.available()) { // if two bytes were received
+    *datbuf++ = Wire.read();  // receive high byte (overwrites previous reading)
+    *datbuf++ = Wire.read(); // receive low byte as lower 8 bits
   }
-  //Serial.println("return");
-  return currentWaterLevel;
-
-  
-  }
-
-int getWaterLevel(){
-  int currentWaterLevel = 0;
-  int anzTanks = 8;
-  int abstand = 10;
-  digitalWrite(trigger, LOW); 
-  delay(5); 
-  digitalWrite(trigger, HIGH); 
-  delay(10);
-  digitalWrite(trigger, LOW);
-  dauer = pulseIn(echo, HIGH);
-  entfernung = (dauer/2) * 0.03432; 
-  if (entfernung > 100 || entfernung <= 0) 
-  {
-  //return
-  }
-  else 
-  {
-    int level = 100 - (entfernung - abstand);
-    currentWaterLevel = level * 10 * anzTanks;
-  }
-
-  if(currentWaterLevel > 1000 * anzTanks){
-    currentWaterLevel = 1000 * anzTanks;
-  }
- return currentWaterLevel;
 }
+int ReadDistance() {
+  SensorRead(0x00, i2c_rx_buf, 2);
+  lenth_val = i2c_rx_buf[0];
+  lenth_val = lenth_val << 8;
+  lenth_val |= i2c_rx_buf[1];
+  return lenth_val/10;
+}
+void ScanDevices(){
+  byte error, address; //variable for error and I2C address
+  int nDevices;
 
-int getValueForSensor(int sensorNum){ /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////GET VALUE FOR SENSOR
-  
-  switch(sensorNum){
-    case 0:
-      return analogRead(A0);
-      break;
-    case 1:
-      return analogRead(A1);
-      break;
-    case 2:
-      return analogRead(A2);
-      break;
-    case 3:
-      return analogRead(A3);
-      break;
-    case 4:
-      return analogRead(A4);
-      break;
-    case 5:
-      return analogRead(A5);
-      break;
-    case 6:
-      return analogRead(A6);
-      break;
-    case 7:
-      return analogRead(A7);
-      break;
-    case 8:
-      return analogRead(A8);
-      break;
-    case 9:
-      return analogRead(A9);
-      break;
-    case 10:
-      return analogRead(A10);
-      break;
-    case 11:
-      return analogRead(A11);
-      break;
-    case 12:
-      return analogRead(A12);
-      break;
-    case 13:
-      return analogRead(A13);
-      break;
-    case 14:
-      return analogRead(A14);
-      break;
-    case 15:
-      return analogRead(A15);
-      break;
+  Serial.println("Scanning...");
+
+  nDevices = 0;
+  for (address = 1; address < 127; address++ )
+  {
+    // The i2c_scanner uses the return value of
+    // the Write.endTransmisstion to see if
+    // a device did acknowledge to the address.
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+
+    if (error == 0)
+    {
+      Serial.print("I2C device found at address 0x");
+      if (address < 16)
+        Serial.print("0");
+      Serial.print(address, HEX);
+      Serial.println("  !");
+      nDevices++;
     }
-
-
-    Serial.println("ERRRRRRROR");
-  
+    else if (error == 4)
+    {
+      Serial.print("Unknown error at address 0x");
+      if (address < 16)
+        Serial.print("0");
+      Serial.println(address, HEX);
+    }
   }
+  if (nDevices == 0)
+    Serial.println("No I2C devices found\n");
+  else
+    Serial.println("done\n");
+}
