@@ -12,34 +12,22 @@ IPAddress subnet(255, 255, 255, 0);
 byte serverIP[] = { 10,0,0,2 };
 int serverPort = 5000;
 
-unsigned char ok_flag;
-unsigned char fail_flag;
-
-unsigned short lenth_val = 0;
-unsigned char i2c_rx_buf[16];
-unsigned char dirsend_flag = 0;
-
 EthernetServer server(4711);
 EthernetClient client;
 
 
-
-#define TCAADDR 0x70
 #define timeout 5000
-//#define timeoutPin 2
 #define switchPin_1 32 //Ueber einfahrt
 #define switchPin_2 31 //Rechts neben Haustür
 #define switchPin_3 43 //Boeschung
-#define waterBetweenSensors 500
 #define switchPin_4 42 //Unter Solar
 #define switchPin_5 41 //Unter Einfahrt 
 #define switchPin_6 35
 #define switchPin_7 36
 #define switchPin_8 37
 #define transformatorRelayPin 48 //klackern kommt von hier
-#define I2CPin_SENSOR_BIG 0 //Extern
-#define I2CPin_SENSOR_SMALL 1
 #define toggleWaterSourcePin 50 // HIGH = Big Tank
+#define toggleWaterSourcePinTransformerPutThrough 51
 #define time_to_change_watersource_in_ms 120000 // 2 Minuten in eine Richtung!
 #define pinDirektVerbTank 47
 #define pinPumpenVent 33
@@ -52,7 +40,6 @@ unsigned long lastMeasure = 0;
 unsigned long tranformerFollowUpTimeUntil = 0;
 
 String currentWaterLevel = "";
-
 
 boolean currentlyFill = false; //kleinerTank wird befüllt?
 boolean currentlyFillMax = false;
@@ -74,14 +61,13 @@ void setup() {//////////////////////////////////////////////////////////////////
   /////////ETHERNET SERVER
   Ethernet.begin(mac, ip, gateway, subnet);
   server.begin();
-  
   Serial.begin(9600);
-  Serial.println(Ethernet.localIP());
+  Serial1.begin(9600); //intern
+  Serial2.begin(9600); //extern
   Wire.begin();
 
-  scanTcaDevices();
+  Serial.println(Ethernet.localIP());
   
-
   //Pump auto stuff from Server:
   String pumpStateServer = getVarFromServer("pumpAutoMode");
   if(pumpStateServer.indexOf("1") >= 0){
@@ -129,10 +115,6 @@ void setup() {//////////////////////////////////////////////////////////////////
     }
   }
 
-  
-
-  //pinMode(timeoutPin, OUTPUT);
-
   pinMode(switchPin_1, OUTPUT);
   pinMode(switchPin_2, OUTPUT);
   pinMode(switchPin_3, OUTPUT);
@@ -145,7 +127,6 @@ void setup() {//////////////////////////////////////////////////////////////////
 
   pinMode(pinDirektVerbTank, OUTPUT);
   pinMode(pinPumpenVent, OUTPUT);
-
 
   digitalWrite(pinDirektVerbTank, 0);
   digitalWrite(pinPumpenVent, 0);
@@ -211,7 +192,7 @@ void loop() { //////////////////////////////////////////////////////////////////
       }
     }
 
-    if(autoDetectingWaterSource){
+    if(autoDetectingWaterSource && millis() >= tranformerFollowUpTimeUntil){ //ist aktivierung und macht gerade nichts?
       if(kleinerTank > 1000 && !isCurrentWaterSourceSmallTank){
         selectSmallTankAsWaterSource();
       }
@@ -411,6 +392,13 @@ void loop() { //////////////////////////////////////////////////////////////////
        millis() >= tranformerFollowUpTimeUntil
        ){
       digitalWrite(transformatorRelayPin, 0);
+
+      if(digitalRead(toggleWaterSourcePinTransformerPutThrough) == 1)
+        digitalWrite(toggleWaterSourcePinTransformerPutThrough, 0);
+
+      if(digitalRead(toggleWaterSourcePin) == 1)
+        digitalWrite(toggleWaterSourcePin, 0);
+      
     }
 
 }
@@ -530,7 +518,15 @@ int getExternWaterLevel(){
   int currentWaterLevel = 0;
   byte anzTanks = 8;
   int abstand = 9;
-  int entfernung2 = ReadDistance(I2CPin_SENSOR_BIG);
+
+  
+  Serial2.println("1:measure");
+  
+  String readed = Serial2.readString();
+  while(!readed.startsWith("distance:")){readed = Serial2.readString();}
+  int entfernung2 = getValue(readed, ':', 1).toInt();
+
+  
   Serial.println("Big tank Distance in cm: ");
   Serial.println(entfernung2);
   if (entfernung2 > 100+abstand || entfernung2 <= 0) 
@@ -549,7 +545,16 @@ int getWaterLevel(){
   int currentWaterLevel = 0;
   int anzTanks = 4;
   int abstand = 60;
-  int entfernung = ReadDistance(I2CPin_SENSOR_SMALL); 
+
+  
+  Serial1.println("0:measure");
+  
+  String readed = Serial1.readString();
+  while(!readed.startsWith("distance:")){readed = Serial1.readString();}
+  int entfernung = getValue(readed, ':', 1).toInt(); 
+
+
+  
   Serial.println("Distance in cm: ");
   Serial.println(entfernung);
   if (entfernung > 100+abstand || entfernung <= 0) 
@@ -561,77 +566,16 @@ int getWaterLevel(){
     int level = 100 - (entfernung - abstand);
     currentWaterLevel = level * 10 * anzTanks;
   }
-
  return currentWaterLevel;
 }
 
 
 
-void tcaselect(uint8_t i) {
-  if (i > 7) return;
-
-  Wire.beginTransmission(TCAADDR);
-  Wire.write(1 << i);
-  Wire.endTransmission();
-}
-void SensorRead(unsigned char addr, unsigned char* datbuf, unsigned char cnt){
-  unsigned short result = 0;
-  // step 1: instruct sensor to read echoes
-  Wire.beginTransmission(82); // transmit to device #82 (0x52)
-  // the address specified in the datasheet is 164 (0xa4)
-  // but i2c adressing uses the high 7 bits so it's 82
-  Wire.write(byte(addr));      // sets distance data address (addr)
-  Wire.endTransmission();      // stop transmitting
-  // step 2: wait for readings to happen
-  delay(1);                   // datasheet suggests at least 30uS
-  // step 3: request reading from sensor
-  Wire.requestFrom(82, cnt);    // request cnt bytes from slave device #82 (0x52)
-  // step 5: receive reading from sensor
-  if (cnt <= Wire.available()) { // if two bytes were received
-    *datbuf++ = Wire.read();  // receive high byte (overwrites previous reading)
-    *datbuf++ = Wire.read(); // receive low byte as lower 8 bits
-  }
-}
-int ReadDistance(int sensor) {
-  tcaselect(sensor);
-  delay(150);
-  SensorRead(0x00, i2c_rx_buf, 2);
-  lenth_val = i2c_rx_buf[0];
-  lenth_val = lenth_val << 8;
-  lenth_val |= i2c_rx_buf[1];
-  return lenth_val/10;
-}
-void scanTcaDevices(){
-   for (uint8_t t = 0; t < 8; t++) {
-    tcaselect(t);
-    Serial.print ("Port #");
-    Serial.println(t);
-
-    for (uint8_t addr = 0; addr <= 127; addr++) {
-      
-      // Don't report on the TCA9548A itself!
-      if (addr == TCAADDR) continue;
-
-      // See whether a device is on this address
-      Wire.beginTransmission(addr);
-
-      // See if something acknowledged the transmission
-      int response = Wire.endTransmission();
-      if (response == 0) {
-        Serial.print("Found I2C 0x");  Serial.println(addr, HEX);
-      }
-    }
-
-    // Slow the loop scanner down a bit
-    delay(1000);
-  }
-  Serial.println("\nScan completed.");
-}
-
 void selectBigTankAsWaterSource(){
   Serial.println("Changing WaterSource to BigTanks");
   digitalWrite(transformatorRelayPin, 1);
   digitalWrite(toggleWaterSourcePin, 1);
+  digitalWrite(toggleWaterSourcePinTransformerPutThrough,1);
   tranformerFollowUpTimeUntil = time_to_change_watersource_in_ms*2 + millis();
   isCurrentWaterSourceSmallTank = false;
 }
@@ -639,6 +583,7 @@ void selectSmallTankAsWaterSource(){
   Serial.println("Changing WaterSource to SmallTanks");
   digitalWrite(transformatorRelayPin, 1);
   digitalWrite(toggleWaterSourcePin, 0);
+  digitalWrite(toggleWaterSourcePinTransformerPutThrough,1);
   tranformerFollowUpTimeUntil = time_to_change_watersource_in_ms*2 + millis();
   isCurrentWaterSourceSmallTank = true;
 }
